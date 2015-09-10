@@ -24,7 +24,6 @@ import javax.sql.DataSource;
 
 import io.spring.batch.components.HdfsTextItemWriter;
 import io.spring.batch.domain.Comment;
-import io.spring.batch.domain.JsonLineAggregator;
 import org.apache.hadoop.fs.FileSystem;
 
 import org.springframework.batch.core.Step;
@@ -34,6 +33,7 @@ import org.springframework.batch.item.database.JdbcPagingItemReader;
 import org.springframework.batch.item.database.Order;
 import org.springframework.batch.item.database.PagingQueryProvider;
 import org.springframework.batch.item.database.support.MySqlPagingQueryProvider;
+import org.springframework.batch.item.file.transform.DelimitedLineAggregator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -75,10 +75,10 @@ public class CommentConfiguration {
 	public HdfsTextItemWriter<Comment> commentWriter() throws Exception {
 		HdfsTextItemWriter<Comment> writer = new HdfsTextItemWriter<>(fileSystem);
 
-		writer.setLineAggregator(new JsonLineAggregator<>());
+		writer.setLineAggregator(new DelimitedLineAggregator<>());
 		writer.setBasePath("/wnb/");
 		writer.setBaseFilename("comment");
-		writer.setFileSuffix("json");
+		writer.setFileSuffix("csv");
 
 		return writer;
 	}

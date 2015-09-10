@@ -23,17 +23,18 @@ import java.util.Map;
 import javax.sql.DataSource;
 
 import io.spring.batch.components.HdfsTextItemWriter;
-import io.spring.batch.domain.JsonLineAggregator;
 import io.spring.batch.domain.Post;
 import org.apache.hadoop.fs.FileSystem;
 
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
+import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.database.JdbcPagingItemReader;
 import org.springframework.batch.item.database.Order;
 import org.springframework.batch.item.database.PagingQueryProvider;
 import org.springframework.batch.item.database.support.MySqlPagingQueryProvider;
+import org.springframework.batch.item.file.transform.DelimitedLineAggregator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -75,10 +76,10 @@ public class PostConfiguration {
 	public HdfsTextItemWriter<Post> postWriter() throws Exception {
 		HdfsTextItemWriter<Post> writer = new HdfsTextItemWriter<>(fileSystem);
 
-		writer.setLineAggregator(new JsonLineAggregator<>());
+		writer.setLineAggregator(new DelimitedLineAggregator<>());
 		writer.setBasePath("/wnb/");
 		writer.setBaseFilename("post");
-		writer.setFileSuffix("json");
+		writer.setFileSuffix("csv");
 
 		return writer;
 	}
@@ -94,6 +95,19 @@ public class PostConfiguration {
 		provider.setSortKeys(sortKeys);
 
 		return provider;
+	}
+
+	@Bean
+	public ItemProcessor<Post, Post> processor() {
+		return new ItemProcessor<Post, Post>() {
+			@Override
+			public Post process(Post item) throws Exception {
+
+				item.setBody(item.getBody().trim());
+
+				return item;
+			}
+		};
 	}
 
 	public RowMapper<Post> rowMapper() {
@@ -127,6 +141,7 @@ public class PostConfiguration {
 		return stepBuilderFactory.get("postImport")
 				.<Post, Post>chunk(1000)
 				.reader(postReader())
+				.processor(processor())
 				.writer(postWriter())
 				.build();
 	}
