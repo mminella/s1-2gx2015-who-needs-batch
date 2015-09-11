@@ -24,4 +24,5 @@ build
 .gradle
 pom.xml
 out
+workflow/src/main/resources/application.properties
 
