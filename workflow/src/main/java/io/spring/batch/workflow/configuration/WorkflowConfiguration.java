@@ -113,13 +113,22 @@ public class WorkflowConfiguration {
 
 	@Bean
 	@StepScope
-	public Tasklet ingestTasklet(FileSystem fileSystem,
-			@Value("#jobParameters['inputDir']") String inputDir,
-			@Value("#jobParameters['outputDir'") String outputDir) {
+	public Tasklet ingestTasklet(FileSystem fileSystem) {
 		return new Tasklet() {
 			@Override
 			public RepeatStatus execute(StepContribution contribution, ChunkContext chunkContext) throws Exception {
-				FileUtil.copyMerge(fileSystem, new Path(inputDir), fileSystem, new Path(outputDir), false, fileSystem.getConf(), "");
+				String inputDir = (String) chunkContext.getStepContext().getJobParameters().get("inputDir");
+				String ingestedDir = "ingested";
+
+				if(inputDir.endsWith("/")) {
+					inputDir = inputDir.substring(0, inputDir.length() - 1);
+				}
+
+				String outputDir = inputDir + "ingested";
+
+				System.out.println(">> INPUT DIR = " + inputDir + " OUTPUT DIR = " + outputDir);
+
+				FileUtil.copyMerge(fileSystem, new Path(inputDir), fileSystem, new Path(outputDir + "/ingested.out"), false, fileSystem.getConf(), "");
 				return RepeatStatus.FINISHED;
 			}
 		};
@@ -160,8 +169,8 @@ public class WorkflowConfiguration {
 
 		Flow flow = flowBuilder.start(decider())
 				.on("END").end()
-				.on("EMAIL").to(emailStep)
-				.on("INGEST").to(ingestStep)
+				.from(decider()).on("EMAIL").to(emailStep)
+				.from(decider()).on("INGEST").to(ingestStep)
 				.from(emailStep)
 					.on("FAIL").fail()
 					.on("*").end()
