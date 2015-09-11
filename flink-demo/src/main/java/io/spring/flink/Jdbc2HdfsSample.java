@@ -15,18 +15,26 @@
  */
 package io.spring.flink;
 
+import java.util.concurrent.TimeUnit;
+
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.CsvOutputFormat;
 import org.apache.flink.api.java.io.jdbc.JDBCInputFormat;
+import org.apache.flink.api.java.tuple.Tuple11;
+import org.apache.flink.api.java.tuple.Tuple14;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.tuple.Tuple5;
+import org.apache.flink.api.java.tuple.Tuple7;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
 
 /**
- *
+ * @author Gunnar Hillert
  */
 public class Jdbc2HdfsSample {
 
@@ -36,22 +44,86 @@ public class Jdbc2HdfsSample {
 			final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 			@SuppressWarnings("unchecked")
-			DataSet<Tuple3<Long, Integer, String>> dbData = env.createInput(JDBCInputFormat.buildJDBCInputFormat()
-					.setDBUrl("jdbc:mysql://127.0.0.1:3306/batch_demo")
-					.setDrivername("com.mysql.jdbc.Driver")
-					.setUsername("root")
-					.setPassword("root")
-					.setQuery("select ID, VIEW_COUNT, TITLE from POST").finish(),
-					new TupleTypeInfo(
-							Tuple3.class, BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO));
+			final DataSet<Tuple14<Long, Long, Integer, Long, String, Integer, Integer,
+				String, Long, String, Integer, Integer, Integer, Long>> dataSetPosts =
+					env.createInput(getInputFormat("select ID, VERSION, POST_TYPE, ACCEPTED_ANSWER_ID,"
+							+ "CREATION_DATE, SCORE, VIEW_COUNT, BODY, OWNER_USER_ID, TITLE,"
+							+ "ANSWER_COUNT, COMMENT_COUNT, FAVORITE_COUNT, PARENT_ID from POST"),
+					new TupleTypeInfo<>(
+							Tuple14.class,
+							BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO,
+							BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO,
+							BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO,
+							BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO,
+							BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO,
+							BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO));
 
-			final CsvOutputFormat<Tuple3<Long, Integer, String>> outputFormat = new CsvOutputFormat<>(new Path("hdfs://localhost:8020/result.csv"), "\n", "|");
-			outputFormat.setAllowNullValues(true);
-			outputFormat.setWriteMode(WriteMode.OVERWRITE);
+			dataSetPosts.output(getOutFormat("posts.csv"));
 
-			dbData.output(outputFormat);
-			env.execute();
+			@SuppressWarnings("unchecked")
+			final DataSet<Tuple7<Long, Long, Long, String, String, Long, Integer>> dataSetComments =
+					env.createInput(getInputFormat("select ID, VERSION, POST_ID, VALUE, CREATION_DATE, USER_ID, SCORE from COMMENTS"),
+					new TupleTypeInfo<>(
+							Tuple7.class, BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO,
+							BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO,
+							BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO));
 
+			dataSetComments.output(getOutFormat("comments.csv"));
+
+			@SuppressWarnings("unchecked")
+			final DataSet<Tuple2<Long, Long>> dataSetPostTag = env.createInput(getInputFormat("select POST_ID, TAG_ID from POST_TAG"),
+					new TupleTypeInfo<>(
+							Tuple2.class, BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO));
+
+			dataSetPostTag.output(getOutFormat("post-tag.csv"));
+
+			@SuppressWarnings("unchecked")
+			final DataSet<Tuple3<Long, Long, String>> dataSetTag = env.createInput(getInputFormat("select ID, VERSION, TAG from TAG"),
+					new TupleTypeInfo<>(
+							Tuple3.class, BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO));
+
+			dataSetTag.output(getOutFormat("tag.csv"));
+
+			@SuppressWarnings("unchecked")
+			final DataSet<Tuple11<Long, Long, Integer, String, String, String, String, String, Integer, Integer, Integer>> dataSetUsers = env.createInput(getInputFormat("select ID, VERSION, REPUTATION, CREATION_DATE, DISPLAY_NAME, LAST_ACCESS_DATE, LOCATION, ABOUT, VIEWS, UP_VOTES, DOWN_VOTES from USERS"),
+					new TupleTypeInfo<>(
+							Tuple11.class,
+							BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO,
+							BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO,
+							BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO,
+							BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO,
+							BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO,
+							BasicTypeInfo.INT_TYPE_INFO));
+
+			dataSetUsers.output(getOutFormat("users.csv"));
+
+			@SuppressWarnings("unchecked")
+			final DataSet<Tuple5<Long, Long, Long, Integer, String>> dataSetVotes = env.createInput(getInputFormat("select ID, VERSION, POST_ID, VOTE_TYPE, CREATION_DATE from VOTES"),
+					new TupleTypeInfo<>(
+							Tuple5.class, BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO));
+
+			dataSetVotes.output(getOutFormat("votes.csv"));
+
+			JobExecutionResult executionResult = env.execute();
+
+			System.out.println("Finished in " + executionResult.getNetRuntime(TimeUnit.MILLISECONDS) + "ms.");
 		}
 
+		@SuppressWarnings("rawtypes")
+		private static JDBCInputFormat getInputFormat(String query) {
+			return JDBCInputFormat.buildJDBCInputFormat()
+			.setDBUrl("jdbc:mysql://127.0.0.1:3306/batch_demo")
+			.setDrivername("com.mysql.jdbc.Driver")
+			.setUsername("root")
+			.setPassword("root")
+			.setQuery(query).finish();
+		}
+
+		@SuppressWarnings("rawtypes")
+		private static CsvOutputFormat getOutFormat(String filename) { //hdfs://localhost:8020/
+			final CsvOutputFormat<Tuple3<Long, Integer, String>> outputFormat = new CsvOutputFormat<>(new Path("file:///tmp/flink/" + filename), "\n", "|");
+			outputFormat.setAllowNullValues(true);
+			outputFormat.setWriteMode(WriteMode.OVERWRITE);
+			return outputFormat;
+		}
 }
