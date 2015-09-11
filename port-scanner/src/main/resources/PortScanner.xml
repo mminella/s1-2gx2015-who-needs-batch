@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	   xsi:schemaLocation="http://www.springframework.org/schema/beans
+                    http://www.springframework.org/schema/beans/spring-beans.xsd
+                    http://www.springframework.org/schema/batch
+	                http://www.springframework.org/schema/batch/spring-batch.xsd">
+
+	<job id="vulnScannerJob" xmlns="http://www.springframework.org/schema/batch">
+		<step id="loadPorts" next="masterScanPorts">
+			<tasklet ref="loadPortsTasklet" />
+		</step>
+
+		<step id="masterScanPorts" next="generateResults">
+			<partition partitioner="partitioner" handler="partitionHandler"/>
+		</step>
+
+		<step id="generateResults">
+			<tasklet>
+				<chunk reader="exportItemReader" writer="xmlOutputWriter" commit-interval="10"/>
+			</tasklet>
+		</step>
+	</job>
+
+	<bean id="loadPortsTasklet" class="com.michaelminella.springbatch.tasklet.LoadPortsTasklet" scope="step">
+		<property name="numberOfPorts" value="65536"/>
+		<property name="ipAddress" value="#{jobParameters[ipAddress]}"/>
+		<property name="dataSource" ref="dataSource"/>
+	</bean>
+
+	<bean id="partitioner" class="com.michaelminella.springbatch.partition.ColumnRangePartitioner">
+		<property name="dataSource" ref="dataSource"/>
+		<property name="column" value="ID"/>
+		<property name="table" value="TARGET"/>
+	</bean>
+
+	<bean id="partitionHandler" class="org.springframework.batch.integration.partition.MessageChannelPartitionHandler">
+		<property name="stepName" value="scanPorts"/>
+		<property name="gridSize" value="3"/>
+		<property name="messagingOperations">
+			<bean class="org.springframework.integration.core.MessagingTemplate">
+				<property name="defaultChannel" ref="outboundRequests"/>
+				<property name="receiveTimeout" value="60000000"/>
+			</bean>
+		</property>
+	</bean>
+
+	<bean id="exportItemReader" class="org.springframework.batch.item.database.JdbcPagingItemReader" scope="step">
+		<property name="dataSource" ref="dataSource" />
+		<property name="queryProvider">
+			<bean
+					class="org.springframework.batch.item.database.support.SqlPagingQueryProviderFactoryBean">
+				<property name="dataSource" ref="dataSource" />
+				<property name="selectClause" value="ID, IP, PORT, CONNECTED, BANNER" />
+				<property name="fromClause" value="FROM TARGET" />
+				<property name="whereClause" value="CONNECTED IS TRUE"/>
+				<property name="sortKey" value="PORT" />
+			</bean>
+		</property>
+		<property name="pageSize" value="10" />
+		<property name="rowMapper">
+			<bean class="com.michaelminella.springbatch.domain.TargetRowMapper"/>
+		</property>
+	</bean>
+
+	<bean id="outputFile" class="org.springframework.core.io.FileSystemResource" scope="step">
+		<constructor-arg value="#{jobParameters[outputFile]}"/>
+	</bean>
+
+	<bean id="xmlOutputWriter" class="org.springframework.batch.item.xml.StaxEventItemWriter">
+		<property name="resource" ref="outputFile" />
+		<property name="marshaller" ref="targetMashaller" />
+		<property name="rootTagName" value="openTargets" />
+	</bean>
+
+	<bean id="targetMashaller" class="org.springframework.oxm.xstream.XStreamMarshaller">
+		<property name="aliases">
+			<map>
+				<entry key="target" value="com.michaelminella.springbatch.domain.Target" />
+			</map>
+		</property>
+	</bean>
+
+	<step id="scanPorts" xmlns="http://www.springframework.org/schema/batch">
+		<tasklet>
+			<chunk reader="targetItemReader" processor="targetProcessor" writer="targetWriter" commit-interval="10" skip-limit="20">
+				<skippable-exception-classes>
+					<include class="java.lang.Exception"/>
+				</skippable-exception-classes>
+			</chunk>
+		</tasklet>
+	</step>
+
+	<bean id="targetItemReader" class="org.springframework.batch.item.database.JdbcPagingItemReader" scope="step">
+		<property name="dataSource" ref="dataSource" />
+		<property name="queryProvider">
+			<bean
+					class="org.springframework.batch.item.database.support.SqlPagingQueryProviderFactoryBean">
+				<property name="dataSource" ref="dataSource" />
+				<property name="selectClause" value="ID, IP, PORT, CONNECTED, BANNER" />
+				<property name="fromClause" value="FROM TARGET" />
+				<property name="whereClause" value="ID >= :minId AND ID &lt;= :maxId AND CONNECTED IS NULL"/>
+				<property name="sortKey" value="ID" />
+			</bean>
+		</property>
+		<property name="pageSize" value="10" />
+		<property name="parameterValues">
+			<map>
+				<entry key="minId" value="#{stepExecutionContext[minValue]}"/>
+				<entry key="maxId" value="#{stepExecutionContext[maxValue]}"/>
+			</map>
+		</property>
+		<property name="rowMapper">
+			<bean class="com.michaelminella.springbatch.domain.TargetRowMapper"/>
+		</property>
+	</bean>
+
+	<bean id="targetProcessor" class="com.michaelminella.springbatch.processor.TargetScanItemProcessor"/>
+
+	<bean id="targetWriter" class="org.springframework.batch.item.database.JdbcBatchItemWriter">
+		<property name="assertUpdates" value="true" />
+		<property name="itemSqlParameterSourceProvider">
+			<bean class="org.springframework.batch.item.database.BeanPropertyItemSqlParameterSourceProvider" />
+		</property>
+		<property name="sql" value="UPDATE TARGET SET CONNECTED = :connected, BANNER = :banner WHERE ID = :id" />
+		<property name="dataSource" ref="dataSource" />
+	</bean>
+</beans>

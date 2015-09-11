@@ -25,4 +25,5 @@ build
 pom.xml
 out
 workflow/src/main/resources/application.properties
+port-scanner/src/main/resources/application.properties
 
