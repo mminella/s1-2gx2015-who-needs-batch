@@ -65,9 +65,6 @@ public class PortScannerConfiguration {
 	@StepScope
 	public LoadPortsTasklet loadPortsTasklet(DataSource dataSource,
 			@Value("#{jobParameters['ipAddress']}") String ipAddress) {
-		System.out.println("When am I created????");
-		System.out.println("dataSource = " + dataSource);
-		System.out.println("ipAddress = " + ipAddress);
 		LoadPortsTasklet tasklet = new LoadPortsTasklet();
 
 		tasklet.setDataSource(dataSource);
