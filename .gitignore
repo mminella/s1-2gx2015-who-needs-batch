@@ -22,7 +22,6 @@ s3.properties
 .springBeans
 build
 .gradle
-pom.xml
 out
 workflow/src/main/resources/application.properties
 port-scanner/src/main/resources/application.properties
