@@ -40,6 +40,15 @@ public class Jdbc2HdfsSample {
 
 		public static void main(String[] args) throws Exception {
 
+			final boolean writeToLocalFs;
+
+			if(args.length > 0 && args[0].equalsIgnoreCase("localfs")) {
+				writeToLocalFs = true;
+			}
+			else {
+				writeToLocalFs = false;
+			}
+
 			// set up the execution environment
 			final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -49,7 +58,7 @@ public class Jdbc2HdfsSample {
 					env.createInput(getInputFormat("select ID, VERSION, POST_TYPE, ACCEPTED_ANSWER_ID,"
 							+ "CREATION_DATE, SCORE, VIEW_COUNT, BODY, OWNER_USER_ID, TITLE,"
 							+ "ANSWER_COUNT, COMMENT_COUNT, FAVORITE_COUNT, PARENT_ID from POST"),
-					new TupleTypeInfo<>(
+					new TupleTypeInfo(
 							Tuple14.class,
 							BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO,
 							BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO,
@@ -58,35 +67,35 @@ public class Jdbc2HdfsSample {
 							BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO,
 							BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO));
 
-			dataSetPosts.output(getOutFormat("posts.csv"));
+			dataSetPosts.output(getOutFormat("posts.csv", writeToLocalFs));
 
 			@SuppressWarnings("unchecked")
 			final DataSet<Tuple7<Long, Long, Long, String, String, Long, Integer>> dataSetComments =
 					env.createInput(getInputFormat("select ID, VERSION, POST_ID, VALUE, CREATION_DATE, USER_ID, SCORE from COMMENTS"),
-					new TupleTypeInfo<>(
+					new TupleTypeInfo(
 							Tuple7.class, BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO,
 							BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO,
 							BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO));
 
-			dataSetComments.output(getOutFormat("comments.csv"));
+			dataSetComments.output(getOutFormat("comments.csv", writeToLocalFs));
 
 			@SuppressWarnings("unchecked")
 			final DataSet<Tuple2<Long, Long>> dataSetPostTag = env.createInput(getInputFormat("select POST_ID, TAG_ID from POST_TAG"),
-					new TupleTypeInfo<>(
+					new TupleTypeInfo(
 							Tuple2.class, BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO));
 
-			dataSetPostTag.output(getOutFormat("post-tag.csv"));
+			dataSetPostTag.output(getOutFormat("post-tag.csv", writeToLocalFs));
 
 			@SuppressWarnings("unchecked")
 			final DataSet<Tuple3<Long, Long, String>> dataSetTag = env.createInput(getInputFormat("select ID, VERSION, TAG from TAG"),
-					new TupleTypeInfo<>(
+					new TupleTypeInfo(
 							Tuple3.class, BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO));
 
-			dataSetTag.output(getOutFormat("tag.csv"));
+			dataSetTag.output(getOutFormat("tag.csv", writeToLocalFs));
 
 			@SuppressWarnings("unchecked")
 			final DataSet<Tuple11<Long, Long, Integer, String, String, String, String, String, Integer, Integer, Integer>> dataSetUsers = env.createInput(getInputFormat("select ID, VERSION, REPUTATION, CREATION_DATE, DISPLAY_NAME, LAST_ACCESS_DATE, LOCATION, ABOUT, VIEWS, UP_VOTES, DOWN_VOTES from USERS"),
-					new TupleTypeInfo<>(
+					new TupleTypeInfo(
 							Tuple11.class,
 							BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO,
 							BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO,
@@ -95,21 +104,21 @@ public class Jdbc2HdfsSample {
 							BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO,
 							BasicTypeInfo.INT_TYPE_INFO));
 
-			dataSetUsers.output(getOutFormat("users.csv"));
+			dataSetUsers.output(getOutFormat("users.csv", writeToLocalFs));
 
 			@SuppressWarnings("unchecked")
 			final DataSet<Tuple5<Long, Long, Long, Integer, String>> dataSetVotes = env.createInput(getInputFormat("select ID, VERSION, POST_ID, VOTE_TYPE, CREATION_DATE from VOTES"),
-					new TupleTypeInfo<>(
+					new TupleTypeInfo(
 							Tuple5.class, BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO));
 
-			dataSetVotes.output(getOutFormat("votes.csv"));
+			dataSetVotes.output(getOutFormat("votes.csv", writeToLocalFs));
 
 			JobExecutionResult executionResult = env.execute();
 
 			System.out.println("Finished in " + executionResult.getNetRuntime(TimeUnit.MILLISECONDS) + "ms.");
 		}
 
-		@SuppressWarnings("rawtypes")
+		//@SuppressWarnings("rawtypes")
 		private static JDBCInputFormat getInputFormat(String query) {
 			return JDBCInputFormat.buildJDBCInputFormat()
 			.setDBUrl("jdbc:mysql://127.0.0.1:3306/batch_demo")
@@ -120,8 +129,18 @@ public class Jdbc2HdfsSample {
 		}
 
 		@SuppressWarnings("rawtypes")
-		private static CsvOutputFormat getOutFormat(String filename) { //hdfs://localhost:8020/
-			final CsvOutputFormat<Tuple3<Long, Integer, String>> outputFormat = new CsvOutputFormat<>(new Path("file:///tmp/flink/" + filename), "\n", "|");
+		private static CsvOutputFormat getOutFormat(String filename, boolean writeToLocalFs) {
+
+			final Path outputPath;
+
+			if (writeToLocalFs) {
+				outputPath = new Path("file:///tmp/flink/" + filename);
+			}
+			else {
+				outputPath = new Path("hdfs://localhost:8020/" + filename);
+			}
+			final CsvOutputFormat outputFormat = new CsvOutputFormat(outputPath, "\n", "|");
+
 			outputFormat.setAllowNullValues(true);
 			outputFormat.setWriteMode(WriteMode.OVERWRITE);
 			return outputFormat;

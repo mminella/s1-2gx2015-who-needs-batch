@@ -26,7 +26,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<name>Flink Quickstart Job</name>
-	<url>http://www.myorganization.org</url>
+	<url>http://spring.io</url>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -84,11 +84,6 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-clients</artifactId>
-			<version>0.9.1</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-kafka</artifactId>
 			<version>0.9.1</version>
 		</dependency>
 		<dependency>
@@ -218,7 +213,7 @@ under the License.
 							<transformers>
 								<!-- add Main-Class to manifest file -->
 								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-									<mainClass>com.dataartisans.Job</mainClass>
+									<mainClass>io.spring.flink.Jdbc2HdfsSample</mainClass>
 								</transformer>
 							</transformers>
 							<createDependencyReducedPom>false</createDependencyReducedPom>
@@ -235,7 +230,7 @@ under the License.
 				<configuration>
 					<archive>
 						<manifestEntries>
-							<Main-Class>com.dataartisans.Job</Main-Class>
+							<Main-Class>io.spring.flink.Jdbc2HdfsSample</Main-Class>
 						</manifestEntries>
 					</archive>
 				</configuration>
@@ -318,7 +313,7 @@ under the License.
 	</build>
 	<profiles>
 		<profile>
-			<!-- A profile that does everyting correctly:
+			<!-- A profile that does everything correctly:
 			We set the Flink dependencies to provided -->
 			<id>build-jar</id>
 			<activation>
