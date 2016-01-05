@@ -63,7 +63,7 @@ Start your *Spring XD* single node server:
 
 	xd:> stream create joblog --definition "tap:job:mysql2hdfs.job > log" --deploy
 
-	xd:> stream create job-notifications --definition "tap:job:mysql2hdfs.job > transform --expression='\"Job Finished with Execution ID\" + payload.id' | mail --to='\"springone2gx@roc.ks\"' --host=localhost --subject='\"Job Complete\"'" --deploy
+	xd:> stream create job-notifications --definition "tap:job:mysql2hdfs.job > transform --expression='\"Job Status: \" + payload.status + \" with Execution ID \" + payload.id' | mail --to='\"springone2gx@roc.ks\"' --host=localhost --subject='\"Job Notification\"'" --deploy
 
 Execute the job by posting to the created HTTP endpoint:
 

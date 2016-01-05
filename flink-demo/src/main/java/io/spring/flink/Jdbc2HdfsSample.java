@@ -18,7 +18,6 @@ package io.spring.flink;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -139,10 +138,10 @@ public class Jdbc2HdfsSample {
 
 		private static JDBCInputFormat getInputFormat(String query) {
 			return JDBCInputFormat.buildJDBCInputFormat()
-			.setDBUrl("jdbc:mysql://127.0.0.1:3306/batch_demo")
+			.setDBUrl("jdbc:mysql://127.0.0.1:3306/bicycles")
 			.setDrivername("com.mysql.jdbc.Driver")
 			.setUsername("root")
-			.setPassword("root")
+			.setPassword("p@ssw0rd")
 			.setQuery(query).finish();
 		}
 

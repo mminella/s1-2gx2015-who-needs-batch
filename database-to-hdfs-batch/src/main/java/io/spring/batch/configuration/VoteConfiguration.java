@@ -33,6 +33,7 @@ import org.springframework.batch.item.database.JdbcPagingItemReader;
 import org.springframework.batch.item.database.Order;
 import org.springframework.batch.item.database.PagingQueryProvider;
 import org.springframework.batch.item.database.support.MySqlPagingQueryProvider;
+import org.springframework.batch.item.file.transform.BeanWrapperFieldExtractor;
 import org.springframework.batch.item.file.transform.DelimitedLineAggregator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -58,7 +59,7 @@ public class VoteConfiguration {
 	public FileSystem fileSystem;
 
 	@Bean
-	public JdbcPagingItemReader<Vote> reader() throws Exception {
+	public JdbcPagingItemReader<Vote> voteReader() throws Exception {
 		JdbcPagingItemReader<Vote> reader = new JdbcPagingItemReader<>();
 
 		reader.setDataSource(dataSource);
@@ -75,7 +76,14 @@ public class VoteConfiguration {
 	public HdfsTextItemWriter<Vote> voteWriter() throws Exception {
 		HdfsTextItemWriter<Vote> writer = new HdfsTextItemWriter<>(fileSystem);
 
-		writer.setLineAggregator(new DelimitedLineAggregator<>());
+		DelimitedLineAggregator<Vote> lineAggregator = new DelimitedLineAggregator<>();
+		BeanWrapperFieldExtractor<Vote> fieldExtractor = new BeanWrapperFieldExtractor<>();
+		fieldExtractor.setNames(new String[] {"postId", "voteType"});
+		fieldExtractor.afterPropertiesSet();
+
+		lineAggregator.setFieldExtractor(fieldExtractor);
+
+		writer.setLineAggregator(lineAggregator);
 		writer.setBasePath("/wnb/");
 		writer.setBaseFilename("vote");
 		writer.setFileSuffix("csv");
@@ -117,7 +125,7 @@ public class VoteConfiguration {
 	public Step voteImport() throws Exception {
 		return stepBuilderFactory.get("voteImport")
 				.<Vote, Vote>chunk(1000)
-				.reader(reader())
+				.reader(voteReader())
 				.writer(voteWriter())
 				.build();
 	}

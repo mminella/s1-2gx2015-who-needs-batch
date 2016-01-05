@@ -34,6 +34,7 @@ import org.springframework.batch.item.database.JdbcPagingItemReader;
 import org.springframework.batch.item.database.Order;
 import org.springframework.batch.item.database.PagingQueryProvider;
 import org.springframework.batch.item.database.support.MySqlPagingQueryProvider;
+import org.springframework.batch.item.file.transform.BeanWrapperFieldExtractor;
 import org.springframework.batch.item.file.transform.DelimitedLineAggregator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -76,7 +77,13 @@ public class PostConfiguration {
 	public HdfsTextItemWriter<Post> postWriter() throws Exception {
 		HdfsTextItemWriter<Post> writer = new HdfsTextItemWriter<>(fileSystem);
 
-		writer.setLineAggregator(new DelimitedLineAggregator<>());
+		DelimitedLineAggregator<Post> lineAggregator = new DelimitedLineAggregator<>();
+		BeanWrapperFieldExtractor<Post> fieldExtractor = new BeanWrapperFieldExtractor<>();
+		fieldExtractor.setNames(new String[] {"postTypeId", "acceptedAnswerId", "score", "viewCount", "body", "ownerUserId", "title", "answerCount", "commentCount", "favoriteCount", "tags", "parentId"});
+		fieldExtractor.afterPropertiesSet();
+		lineAggregator.setFieldExtractor(fieldExtractor);
+
+		writer.setLineAggregator(lineAggregator);
 		writer.setBasePath("/wnb/");
 		writer.setBaseFilename("post");
 		writer.setFileSuffix("csv");

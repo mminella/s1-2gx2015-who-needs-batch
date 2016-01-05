@@ -33,6 +33,7 @@ import org.springframework.batch.item.database.JdbcPagingItemReader;
 import org.springframework.batch.item.database.Order;
 import org.springframework.batch.item.database.PagingQueryProvider;
 import org.springframework.batch.item.database.support.MySqlPagingQueryProvider;
+import org.springframework.batch.item.file.transform.BeanWrapperFieldExtractor;
 import org.springframework.batch.item.file.transform.DelimitedLineAggregator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -58,7 +59,7 @@ public class UserConfiguration {
 	public DataSource dataSource;
 
 	@Bean
-	public JdbcPagingItemReader<User> reader() throws Exception {
+	public JdbcPagingItemReader<User> userReader() throws Exception {
 		JdbcPagingItemReader<User> reader = new JdbcPagingItemReader<>();
 
 		reader.setDataSource(dataSource);
@@ -75,7 +76,13 @@ public class UserConfiguration {
 	public HdfsTextItemWriter<User> userWriter() throws Exception {
 		HdfsTextItemWriter<User> writer = new HdfsTextItemWriter<>(fileSystem);
 
-		writer.setLineAggregator(new DelimitedLineAggregator<>());
+		DelimitedLineAggregator<User> lineAggregator = new DelimitedLineAggregator<>();
+		BeanWrapperFieldExtractor<User> fieldExtractor = new BeanWrapperFieldExtractor<>();
+		fieldExtractor.setNames(new String[] {"reputation", "displayName", "location", "about", "views", "upVotes", "downVotes"});
+		fieldExtractor.afterPropertiesSet();
+		lineAggregator.setFieldExtractor(fieldExtractor);
+
+		writer.setLineAggregator(lineAggregator);
 		writer.setBasePath("/wnb/");
 		writer.setBaseFilename("user");
 		writer.setFileSuffix("csv");
@@ -123,7 +130,7 @@ public class UserConfiguration {
 	public Step userImport() throws Exception {
 		return stepBuilderFactory.get("userImport")
 				.<User, User>chunk(1000)
-				.reader(reader())
+				.reader(userReader())
 				.writer(userWriter())
 				.build();
 	}

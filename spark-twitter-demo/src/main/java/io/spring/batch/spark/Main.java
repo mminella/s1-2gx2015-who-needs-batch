@@ -63,7 +63,7 @@ public class Main {
 
 		ssc.start();
 
-		// Just run stream for 20 seconds
-		ssc.awaitTermination(20000);
+		// Just run stream for 10 seconds
+		ssc.awaitTermination(10000);
 	}
 }

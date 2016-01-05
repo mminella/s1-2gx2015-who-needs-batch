@@ -111,6 +111,7 @@ public class HdfsTextItemWriter<T> extends AbstractHdfsItemWriter<T> implements 
 	private byte[] getItemsAsBytes(List<? extends T> items) {
 
 		StringBuilder lines = new StringBuilder();
+
 		for (T item : items) {
 			lines.append(lineAggregator.aggregate(item) + lineSeparator);
 		}

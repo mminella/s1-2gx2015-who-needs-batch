@@ -35,8 +35,8 @@ public class IngestionDecider implements JobExecutionDecider {
 
 	private FileSystem fileSystem;
 
-//	private static final long ONE_DAY = 1000 * 60 * 60 * 24;
-	private static final long ONE_DAY = 1000 * 60; // T
+	private static final long ONE_DAY = 1000 * 60 * 60 * 24;
+//	private static final long ONE_DAY = 1000 * 60; // T
 
 	private static final long SIX_DAYS = 1000 * 60 * 60 * 24 * 6;
 

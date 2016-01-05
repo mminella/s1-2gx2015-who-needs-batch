@@ -33,6 +33,7 @@ import org.springframework.batch.item.database.JdbcPagingItemReader;
 import org.springframework.batch.item.database.Order;
 import org.springframework.batch.item.database.PagingQueryProvider;
 import org.springframework.batch.item.database.support.MySqlPagingQueryProvider;
+import org.springframework.batch.item.file.transform.BeanWrapperFieldExtractor;
 import org.springframework.batch.item.file.transform.DelimitedLineAggregator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -75,7 +76,14 @@ public class CommentConfiguration {
 	public HdfsTextItemWriter<Comment> commentWriter() throws Exception {
 		HdfsTextItemWriter<Comment> writer = new HdfsTextItemWriter<>(fileSystem);
 
-		writer.setLineAggregator(new DelimitedLineAggregator<>());
+		DelimitedLineAggregator<Comment> lineAggregator = new DelimitedLineAggregator<>();
+		BeanWrapperFieldExtractor<Comment> fieldExtractor = new BeanWrapperFieldExtractor<>();
+		fieldExtractor.setNames(new String [] {"postId", "value", "userId", "score"});
+		fieldExtractor.afterPropertiesSet();
+
+		lineAggregator.setFieldExtractor(fieldExtractor);
+
+		writer.setLineAggregator(lineAggregator);
 		writer.setBasePath("/wnb/");
 		writer.setBaseFilename("comment");
 		writer.setFileSuffix("csv");

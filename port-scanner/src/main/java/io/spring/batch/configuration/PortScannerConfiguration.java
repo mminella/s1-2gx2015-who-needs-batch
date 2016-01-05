@@ -69,7 +69,7 @@ public class PortScannerConfiguration {
 
 		tasklet.setDataSource(dataSource);
 		tasklet.setIpAddress(ipAddress);
-		tasklet.setNumberOfPorts(1024);
+		tasklet.setNumberOfPorts(500);
 
 		return tasklet;
 	}
